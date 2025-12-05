@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useMount } from 'react-use';
 
@@ -28,6 +28,9 @@ import { openAssistedInstaller } from '../assessment/utils/functions';
 import { parseLatestSnapshot } from '../assessment/utils/snapshotParser';
 
 import { Dashboard } from './assessment-report/Dashboard';
+import CostEstimationModal from './CostEstimationModal';
+
+;
 
 export type SnapshotLike = {
   // New preferred structure
@@ -36,6 +39,7 @@ export type SnapshotLike = {
   // Backward-compatible fields
   infra?: Infra;
   vms?: VMs;
+  cpuCores?: number;
   inventory?: {
     infra?: Infra; // legacy
     vms?: VMs; // legacy
@@ -56,6 +60,16 @@ type AssessmentLike = {
 const Inner: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const discoverySourcesContext = useDiscoverySources();
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const handleOpenModal = (): void => {
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = (): void => {
+    setIsModalOpen(false);
+  }
 
   useMount(async () => {
     if (
@@ -203,6 +217,9 @@ const Inner: React.FC = () => {
               <Button variant="primary" onClick={openAssistedInstaller}>
                 Create a target cluster
               </Button>
+              <Button variant="primary" onClick={handleOpenModal}>
+                Cost estimation
+              </Button>
             </>
           ) : null}
         </div>
@@ -219,6 +236,12 @@ const Inner: React.FC = () => {
           </Content>
         </Bullseye>
       )}
+
+      <CostEstimationModal
+        vCPUs={cpuCores?.total || 0}
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+      />
     </AppPage>
   );
 };
