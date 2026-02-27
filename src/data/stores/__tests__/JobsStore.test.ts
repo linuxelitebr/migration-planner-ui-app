@@ -1,6 +1,9 @@
 import type { JobApi } from "@openshift-migration-advisor/planner-sdk";
 import type { Job } from "@openshift-migration-advisor/planner-sdk";
-import { JobStatus } from "@openshift-migration-advisor/planner-sdk";
+import {
+  JobStatus,
+  ResponseError,
+} from "@openshift-migration-advisor/planner-sdk";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { JobsStore, TERMINAL_JOB_STATUSES } from "../JobsStore";
@@ -86,11 +89,56 @@ describe("JobsStore", () => {
     const error = new Error("boom");
     vi.mocked(api.createRVToolsAssessment).mockRejectedValue(error);
 
-    await expect(
-      store.createRVToolsJob("test", new File([], "f.xlsx")),
-    ).rejects.toThrow("boom");
+    const result = await store.createRVToolsJob("test", new File([], "f.xlsx"));
 
-    expect(store.getSnapshot().createError).toBe(error);
+    expect(result).toBeUndefined();
+    expect(store.getSnapshot().createError).toEqual(new Error("boom"));
+    expect(store.getSnapshot().isCreating).toBe(false);
+  });
+
+  it("extracts error message from ResponseError with JSON response", async () => {
+    const mockResponse = {
+      text: vi
+        .fn()
+        .mockResolvedValue(
+          JSON.stringify({ message: "The provided name: aaa aaa is invalid." }),
+        ),
+      status: 400,
+      ok: false,
+      statusText: "Bad Request",
+    } as unknown as Response;
+
+    const responseError = new ResponseError(mockResponse, "Bad Request");
+
+    vi.mocked(api.createRVToolsAssessment).mockRejectedValue(responseError);
+
+    const result = await store.createRVToolsJob("test", new File([], "f.xlsx"));
+
+    expect(result).toBeUndefined();
+    expect(store.getSnapshot().createError?.message).toBe(
+      "The provided name: aaa aaa is invalid.",
+    );
+    expect(store.getSnapshot().isCreating).toBe(false);
+  });
+
+  it("extracts error message from ResponseError with plain text response", async () => {
+    const mockResponse = {
+      text: vi.fn().mockResolvedValue("Invalid RVTools file format"),
+      status: 400,
+      ok: false,
+      statusText: "Bad Request",
+    } as unknown as Response;
+
+    const responseError = new ResponseError(mockResponse, "Bad Request");
+
+    vi.mocked(api.createRVToolsAssessment).mockRejectedValue(responseError);
+
+    const result = await store.createRVToolsJob("test", new File([], "f.xlsx"));
+
+    expect(result).toBeUndefined();
+    expect(store.getSnapshot().createError?.message).toBe(
+      "Invalid RVTools file format",
+    );
     expect(store.getSnapshot().isCreating).toBe(false);
   });
 

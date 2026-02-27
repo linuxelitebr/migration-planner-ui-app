@@ -86,6 +86,9 @@ export interface AssessmentPageViewModel {
   /** Error derived from a failed job (null when job hasn't failed). */
   jobError: Error | null;
 
+  /** `true` while loading assessments and navigating after job completion. */
+  isNavigatingToReport: boolean;
+
   /** `true` while a delete-assessment request is in flight. */
   isDeletingAssessment: boolean;
   /** Error from the last delete-assessment attempt. */
@@ -131,6 +134,19 @@ export const useAssessmentPageViewModel = (): AssessmentPageViewModel => {
   // ---- Detect job completion and navigate to report -----------------------
 
   const prevJobRef = useRef<Job | null>(null);
+  const isNavigatingRef = useRef(false);
+
+  const [navigationState, navigateToReport] = useAsyncFn(
+    async (assessmentId: string) => {
+      try {
+        await assessmentsStore.list();
+        navigate(routes.assessmentReport(assessmentId));
+      } finally {
+        isNavigatingRef.current = false;
+      }
+    },
+    [assessmentsStore, navigate],
+  );
 
   useEffect(() => {
     const { currentJob } = jobState;
@@ -140,15 +156,17 @@ export const useAssessmentPageViewModel = (): AssessmentPageViewModel => {
     if (
       currentJob?.status === JobStatus.Completed &&
       currentJob.assessmentId &&
-      prevJob?.status !== JobStatus.Completed
+      prevJob?.status !== JobStatus.Completed &&
+      !isNavigatingRef.current
     ) {
       const assessmentId = currentJob.assessmentId;
+      isNavigatingRef.current = true;
       jobsStore.stopPolling();
       jobsStore.reset();
-      void assessmentsStore.list();
-      navigate(routes.assessmentReport(assessmentId));
+
+      void navigateToReport(assessmentId);
     }
-  }, [jobState, jobsStore, assessmentsStore, navigate]);
+  }, [jobState, jobsStore, navigateToReport]);
 
   // ---- Actions ------------------------------------------------------------
 
@@ -221,6 +239,7 @@ export const useAssessmentPageViewModel = (): AssessmentPageViewModel => {
     jobProgressValue,
     jobProgressLabel,
     jobError,
+    isNavigatingToReport: navigationState.loading,
     isDeletingAssessment: deleteState.loading,
     deleteError: deleteState.error,
     isUpdatingAssessment: updateState.loading,

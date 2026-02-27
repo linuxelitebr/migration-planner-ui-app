@@ -49,6 +49,7 @@ const Assessment: React.FC<Props> = ({
     jobProgressValue,
     jobProgressLabel,
     jobError,
+    isNavigatingToReport,
     isDeletingAssessment,
     createRVToolsJob,
     cancelRVToolsJob,
@@ -511,6 +512,7 @@ const Assessment: React.FC<Props> = ({
         jobProgressValue={jobProgressValue}
         jobProgressLabel={jobProgressLabel}
         jobError={jobError}
+        isNavigatingToReport={isNavigatingToReport}
       />
 
       <UpdateAssessment

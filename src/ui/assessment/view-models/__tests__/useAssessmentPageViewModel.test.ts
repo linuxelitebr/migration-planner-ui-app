@@ -249,7 +249,7 @@ describe("useAssessmentPageViewModel", () => {
 
   // -- Job completion detection ---------------------------------------------
 
-  it("stops polling, resets, and navigates to report on job completion", () => {
+  it("stops polling, resets, and navigates to report on job completion", async () => {
     renderHook(() => useAssessmentPageViewModel());
 
     // Simulate job transitioning from Running → Completed
@@ -259,13 +259,15 @@ describe("useAssessmentPageViewModel", () => {
       });
     });
 
-    act(() => {
+    await act(async () => {
       setJobsState({
         currentJob: makeJob({
           status: JobStatus.Completed,
           assessmentId: "a-42",
         }),
       });
+      // Wait for list() promise to resolve
+      await Promise.resolve();
     });
 
     expect(mockJobsStore.stopPolling).toHaveBeenCalled();
