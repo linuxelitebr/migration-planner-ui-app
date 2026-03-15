@@ -16,7 +16,7 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 
 import MainApp from "../../src/MainApp";
 
-const logoUrl = new URL("/oma-logo.svg", import.meta.url);
+const logoUrl = new URL("/rma-logo.svg", import.meta.url);
 
 export const AppShell: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);

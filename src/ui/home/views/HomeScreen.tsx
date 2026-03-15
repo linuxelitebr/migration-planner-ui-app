@@ -11,7 +11,7 @@ export const HomeScreen: React.FC = () => {
   return (
     <AppPage
       breadcrumbs={vm.breadcrumbs}
-      title="Welcome, let's start your migration journey from VMware to OpenShift."
+      title="Welcome, let's start your migration journey to RHEL"
     >
       <Tabs
         activeKey={vm.activeTabKey}
