@@ -18,7 +18,6 @@ import { VersionsStore } from "../data/stores/VersionsStore";
 import { createAuthMiddleware } from "../lib/middleware/Auth";
 import { HtmlExportService } from "../services/html-export/HtmlExportService";
 import { PdfExportService } from "../services/pdf-export/PdfExportService";
-import { resolveApiBaseUrl } from "./ApiConfig";
 
 /** Symbols used by the DI container */
 export const Symbols = Object.freeze({
@@ -32,20 +31,8 @@ export const Symbols = Object.freeze({
 });
 
 export const createContainer = (auth: ChromeAPI["auth"]): Container => {
-  const apiBaseUrl = resolveApiBaseUrl();
-
-  // Log the detected API path for debugging (safe for SSR/test environments)
-  try {
-    console.log("[Migration Planner] Runtime API Path Detection:", {
-      currentPath: window.location.pathname,
-      detectedApiPath: apiBaseUrl,
-    });
-  } catch {
-    // SSR or test environment without DOM - skip logging
-  }
-
   const plannerApiConfig = new Configuration({
-    basePath: apiBaseUrl,
+    basePath: process.env.MIGRATION_PLANNER_API_BASE_URL,
     middleware: [createAuthMiddleware(auth)],
   });
 

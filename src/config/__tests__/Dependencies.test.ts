@@ -55,9 +55,6 @@ vi.mock("../../services/pdf-export/PdfExportService", () => ({
 vi.mock("../../lib/middleware/Auth", () => ({
   createAuthMiddleware: vi.fn().mockReturnValue({ pre: vi.fn() }),
 }));
-vi.mock("../ApiConfig", () => ({
-  resolveApiBaseUrl: vi.fn().mockReturnValue("/api/migration-assessment"),
-}));
 
 // ---------------------------------------------------------------------------
 // Chrome stub
