@@ -25,7 +25,7 @@ IMAGE ?= localhost/migration-assessment-ui
 OC_BIN ?= $(shell command -v oc 2>/dev/null)
 OC_VERSION ?= stable
 
-MIGRATION_PLANNER_API_BASE_URL ?= /api/migration-assessment
+MIGRATION_PLANNER_API_BASE_URL ?= /api/migration-advisor-dev
 MIGRATION_PLANNER_UI_GIT_COMMIT ?= $(SOURCE_GIT_COMMIT)
 MIGRATION_PLANNER_UI_VERSION ?= $(SOURCE_GIT_TAG)
 

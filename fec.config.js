@@ -8,7 +8,7 @@ assert(
 
 /** @type {import('@redhat-cloud-services/frontend-components-config').FecWebpackConfiguration} */
 module.exports = {
-  appUrl: "/openshift/migration-assessment",
+  appUrl: "/openshift/migration-advisor-dev",
   debug: true,
   useProxy: true,
   proxyVerbose: true,
