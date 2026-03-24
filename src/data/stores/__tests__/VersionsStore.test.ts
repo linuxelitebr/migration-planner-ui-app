@@ -1,7 +1,7 @@
 import type { InfoApiInterface } from "@openshift-migration-advisor/planner-sdk";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { VersionsStore } from "../VersionsStore";
+import { API_NAME, UI_NAME, VersionsStore } from "../VersionsStore";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -27,12 +27,12 @@ describe("VersionsStore", () => {
 
   it("initial snapshot has ui.name = migration-assessment", () => {
     const snap = store.getSnapshot();
-    expect(snap.ui.name).toBe("migration-assessment");
+    expect(snap.ui.name).toBe(UI_NAME);
   });
 
   it("initial snapshot has api.name = migration-planner", () => {
     const snap = store.getSnapshot();
-    expect(snap.api.name).toBe("migration-planner");
+    expect(snap.api.name).toBe(API_NAME);
   });
 
   it("initial api.versionName = unknown", () => {
