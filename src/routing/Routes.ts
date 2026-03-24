@@ -2,7 +2,7 @@
  * The app slug used by the Insights Chrome to mount this microfrontend.
  * Matches `appUrl` in `fec.config.js`.
  */
-const APP_SLUG = "/openshift/migration-assessment";
+const APP_SLUG = "/openshift/migration-advisor-dev";
 
 let lastLoggedBasename: string | null = null;
 
