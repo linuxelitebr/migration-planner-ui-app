@@ -1,0 +1,172 @@
+name: Rebase Dev Branches on Release Branches
+
+on:
+  push:
+    branches:
+      - 'release-*'
+
+permissions:
+  contents: write
+
+jobs:
+  rebase-dev-branch:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Determine source and target branches
+        id: branches
+        run: |
+          # Get the branch that triggered this workflow
+          SOURCE_BRANCH="${GITHUB_REF#refs/heads/}"
+          echo "source_branch=$SOURCE_BRANCH" >> $GITHUB_OUTPUT
+
+          # Read the active release branch from config (always from master branch)
+          git fetch origin master
+          ACTIVE_RELEASE_BRANCH=$(git show origin/master:.github/release-config.txt | tr -d '[:space:]')
+          echo "active_release=$ACTIVE_RELEASE_BRANCH" >> $GITHUB_OUTPUT
+
+          # Validate format: release-<number>.<number>
+          if ! echo "$ACTIVE_RELEASE_BRANCH" | grep -qE '^release-[0-9]+\.[0-9]+$'; then
+            echo "Error: Invalid release branch format in .github/release-config.txt: '$ACTIVE_RELEASE_BRANCH'"
+            echo "Expected format: release-<number>.<number> (e.g., release-0.9)"
+            exit 1
+          fi
+
+          # TODO: Future support for stable branch (release before active)
+          # STABLE_RELEASE_BRANCH=$(cat .github/stable-release-config.txt 2>/dev/null | tr -d '[:space:]')
+
+          # Determine target branch based on source branch
+          if [ "$SOURCE_BRANCH" == "$ACTIVE_RELEASE_BRANCH" ]; then
+            # Active release branch -> internal dev branch
+            TARGET_BRANCH="internal"
+            echo "should_run=true" >> $GITHUB_OUTPUT
+            echo "✅ Source branch '$SOURCE_BRANCH' is the active release"
+            echo "   Target: $TARGET_BRANCH"
+          # TODO: Uncomment when stable branch support is needed
+          # elif [ -n "$STABLE_RELEASE_BRANCH" ] && [ "$SOURCE_BRANCH" == "$STABLE_RELEASE_BRANCH" ]; then
+          #   # Stable release branch (previous release) -> stable dev branch
+          #   TARGET_BRANCH="stable"
+          #   echo "should_run=true" >> $GITHUB_OUTPUT
+          #   echo "✅ Source branch '$SOURCE_BRANCH' is the stable release"
+          #   echo "   Target: $TARGET_BRANCH"
+          else
+            # Not an active or stable release branch -> skip
+            echo "should_run=false" >> $GITHUB_OUTPUT
+            echo "⏭️ Skipping: Source branch '$SOURCE_BRANCH' is not the active release"
+            echo "   Active release: $ACTIVE_RELEASE_BRANCH"
+            # TODO: Add stable release info when implemented
+            # echo "   Stable release: ${STABLE_RELEASE_BRANCH:-none}"
+            TARGET_BRANCH=""
+          fi
+
+          echo "target_branch=$TARGET_BRANCH" >> $GITHUB_OUTPUT
+
+      - name: Configure Git
+        if: steps.branches.outputs.should_run == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Configure 'ours' merge strategy to keep target branch's version
+          git config merge.ours.driver true
+
+      - name: Checkout target branch
+        if: steps.branches.outputs.should_run == 'true'
+        run: |
+          git fetch origin ${{ steps.branches.outputs.target_branch }}
+          git checkout ${{ steps.branches.outputs.target_branch }}
+
+      - name: Rebase target branch on source branch
+        if: steps.branches.outputs.should_run == 'true'
+        id: rebase
+        run: |
+          SOURCE_BRANCH="${{ steps.branches.outputs.source_branch }}"
+          TARGET_BRANCH="${{ steps.branches.outputs.target_branch }}"
+
+          echo "Starting rebase of $TARGET_BRANCH on $SOURCE_BRANCH..."
+
+          # Fetch latest source branch
+          git fetch origin $SOURCE_BRANCH
+
+          # Perform rebase
+          if git rebase origin/$SOURCE_BRANCH; then
+            echo "✅ Rebase successful without conflicts"
+            echo "conflicts=false" >> $GITHUB_OUTPUT
+          else
+            echo "⚠️ Conflicts detected during rebase"
+            echo "conflicts=true" >> $GITHUB_OUTPUT
+
+            # The .gitattributes file with merge=ours should handle most conflicts
+            # But if there are still conflicts, we'll keep target branch's version
+
+            # List conflicted files
+            CONFLICTS=$(git diff --name-only --diff-filter=U)
+
+            if [ -n "$CONFLICTS" ]; then
+              echo "Resolving remaining conflicts by keeping $TARGET_BRANCH's version:"
+              echo "$CONFLICTS"
+
+              # For each conflicted file, keep target branch's version
+              echo "$CONFLICTS" | while read -r file; do
+                echo "  - Keeping $TARGET_BRANCH version of $file"
+                git checkout --ours "$file"
+                git add "$file"
+              done
+
+              # Continue rebase
+              git -c core.editor=true rebase --continue || {
+                echo "Failed to continue rebase after conflict resolution"
+                git rebase --abort
+                exit 1
+              }
+            fi
+          fi
+
+      - name: Push rebased target branch
+        if: steps.branches.outputs.should_run == 'true'
+        run: |
+          TARGET_BRANCH="${{ steps.branches.outputs.target_branch }}"
+
+          # Force push since rebase rewrites history
+          git push origin $TARGET_BRANCH --force-with-lease
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Summary
+        if: steps.branches.outputs.should_run == 'true'
+        run: |
+          SOURCE_BRANCH="${{ steps.branches.outputs.source_branch }}"
+          TARGET_BRANCH="${{ steps.branches.outputs.target_branch }}"
+          HAD_CONFLICTS="${{ steps.rebase.outputs.conflicts }}"
+
+          echo "✅ Successfully rebased $TARGET_BRANCH on $SOURCE_BRANCH"
+          echo ""
+          echo "Details:"
+          echo "  Source branch: $SOURCE_BRANCH"
+          echo "  Target branch: $TARGET_BRANCH"
+          echo "  Had conflicts: $HAD_CONFLICTS"
+          echo ""
+          echo "Protected files (kept $TARGET_BRANCH's version):"
+          echo "  - fec.config.js"
+          echo "  - src/routing/Routes.ts"
+          echo "  - package.json"
+          echo "  - deploy/frontend.yaml"
+          echo "  - renovate.json"
+          echo "  - src/data/stores/VersionsStore.ts"
+          echo "  - Makefile"
+          echo "  - .tekton/migration-planner-ui-dev-*.yaml"
+
+      - name: Skipped Summary
+        if: steps.branches.outputs.should_run == 'false'
+        run: |
+          echo "⏭️ Workflow skipped"
+          echo ""
+          echo "Reason: Source branch '${{ steps.branches.outputs.source_branch }}' does not match active release '${{ steps.branches.outputs.active_release }}'"
+          echo ""
+          echo "To enable rebase for this branch, update .github/release-config.txt"
